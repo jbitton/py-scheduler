@@ -2,14 +2,64 @@ from utils.util import randomize
 from utils.structures import State, Transition, Event
 from sys import maxsize
 
+current_running_process = None
+start = maxsize
+end = -maxsize - 1
+processes_in_io = 0
+total_io_time = 0
+
+
+def ready(event):
+    global current_running_process, start, end, processes_in_io, total_io_time
+    if event.current_state == State.RUNNING:
+        event.process.cpu_time_left -= event.process.timeout
+        event.process.current_cb -= event.process.timeout
+        current_running_process = None
+    elif event.current_state == State.BLOCKED:
+        event.process.io_time += event.process.current_ib
+        processes_in_io -= 1
+        if processes_in_io == 0:
+            total_io_time += end - start
+            start = maxsize
+            end = -maxsize - 1
+
+
+def running(event):
+    global current_running_process
+    current_running_process = event.process
+    if event.process.current_cb <= 0:
+        event.process.current_cb = randomize(event.process.cpu_burst)
+    actual_burst = min(event.process.current_cb, event.process.timeout)
+    if event.process.cpu_time_left - actual_burst <= 0:
+        event.process.finishing_time = event.process.entry_time + event.process.cpu_time_left
+        new_event = Event(event.process.finishing_time, event.process, State.RUNNING, Transition.DONE)
+    elif event.process.current_cb == actual_burst:
+        event.process.entry_time += actual_burst
+        new_event = Event(event.process.entry_time, event.process, State.RUNNING, Transition.BLOCK)
+    else:
+        event.process.entry_time += actual_burst
+        new_event = Event(event.process.entry_time, event.process, State.RUNNING, Transition.READY)
+    return new_event
+
+
+def block(event, current_time):
+    global current_running_process, start, end, processes_in_io
+    current_running_process = None
+    event.process.cpu_time_left -= event.process.current_cb
+    event.process.current_cb = 0
+    event.process.current_ib = randomize(event.process.io_burst)
+    event.process.entry_time += event.process.current_ib
+    event.process.dynamic_priority = event.process.static_priority - 1
+    processes_in_io += 1
+    if start > current_time:
+        start = current_time
+    if end < event.process.entry_time:
+        end = event.process.entry_time
+    return Event(event.process.entry_time, event.process, State.BLOCKED, Transition.READY)
+
 
 def simulation(event_manager, scheduler):
-    current_running_process = None
-    start = maxsize
-    end = -maxsize - 1
-    processes_in_io = 0
-    total_io_time = 0
-
+    global current_running_process, start, end, processes_in_io, total_io_time
     while event_manager:
         event = event_manager.get_event()
         if event is None:
@@ -18,62 +68,15 @@ def simulation(event_manager, scheduler):
         call_scheduler = False
 
         if event.transition == Transition.READY:
-            if event.current_state == State.RUNNING:
-                event.process.cpu_time_left -= event.process.timeout
-                event.process.current_cb -= event.process.timeout
-                current_running_process = None
-            elif event.current_state == State.BLOCKED:
-                event.process.io_time += event.process.current_ib
-                processes_in_io -= 1
-                if processes_in_io == 0:
-                    total_io_time += end - start
-                    start = maxsize
-                    end = -maxsize - 1
+            ready(event)
             scheduler.add_process(event.process)
             call_scheduler = True
         elif event.transition == Transition.RUN:
-            current_running_process = event.process
-            if event.process.current_cb > 0:
-                actual_burst = min(event.process.current_cb, event.process.timeout)
-                if event.process.cpu_time_left - actual_burst <= 0:
-                    event.process.finishing_time = event.process.entry_time + event.process.cpu_time_left
-                    new_event = Event(event.process.finishing_time, event.process, State.RUNNING, Transition.DONE)
-                elif event.process.current_cb == actual_burst:
-                    event.process.entry_time += actual_burst
-                    new_event = Event(event.process.entry_time, event.process, State.RUNNING, Transition.BLOCK)
-                else:
-                    event.process.entry_time += event.process.timeout
-                    new_event = Event(event.process.entry_time, event.process, State.RUNNING, Transition.READY)
-            else:
-                event.process.current_cb = randomize(event.process.cpu_burst)
-                if event.process.current_cb > event.process.timeout:
-                    if event.process.cpu_time_left - event.process.timeout <= 0:
-                        event.process.finishing_time = event.process.entry_time + event.process.cpu_time_left
-                        new_event = Event(event.process.finishing_time, event.process, State.RUNNING, Transition.DONE)
-                    else:
-                        event.process.entry_time += event.process.timeout
-                        new_event = Event(event.process.entry_time, event.process, State.RUNNING, Transition.READY)
-                elif event.process.cpu_time_left - event.process.current_cb <= 0:
-                    event.process.finishing_time = event.process.entry_time + event.process.cpu_time_left
-                    new_event = Event(event.process.finishing_time, event.process, State.RUNNING, Transition.DONE)
-                else:
-                    event.process.entry_time += event.process.current_cb
-                    new_event = Event(event.process.entry_time, event.process, State.RUNNING, Transition.BLOCK)
+            new_event = running(event)
             event.process.dynamic_priority -= 1
             event_manager.put_event(new_event)
         elif event.transition == Transition.BLOCK:
-            current_running_process = None
-            event.process.cpu_time_left -= event.process.current_cb
-            event.process.current_cb = 0
-            event.process.current_ib = randomize(event.process.io_burst)
-            event.process.entry_time += event.process.current_ib
-            event.process.dynamic_priority = event.process.static_priority - 1
-            processes_in_io += 1
-            if start > current_time:
-                start = current_time
-            if end < event.process.entry_time:
-                end = event.process.entry_time
-            new_event = Event(event.process.entry_time, event.process, State.BLOCKED, Transition.READY)
+            new_event = block(event, current_time)
             event_manager.put_event(new_event)
             call_scheduler = True
         elif event.transition == Transition.DONE:

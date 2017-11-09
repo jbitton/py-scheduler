@@ -16,7 +16,7 @@ class Transition(Enum):
 
 
 class Process(object):
-    def __init__(self, arrival_time, total_cpu_time, cpu_burst, io_burst, prio, pid, timeout=10000):
+    def __init__(self, arrival_time, total_cpu_time, cpu_burst, io_burst, prio, pid, timeout=10000000000):
         self.arrival_time = arrival_time
         self.entry_time = arrival_time
         self.total_cpu_time = total_cpu_time
