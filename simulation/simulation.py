@@ -33,7 +33,6 @@ def simulation(event_manager, scheduler):
             call_scheduler = True
         elif event.transition == Transition.RUN:
             current_running_process = event.process
-            new_event = None
             if event.process.current_cb > 0:
                 actual_burst = min(event.process.current_cb, event.process.timeout)
                 if event.process.cpu_time_left - actual_burst <= 0:
