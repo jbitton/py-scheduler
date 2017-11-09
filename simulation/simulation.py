@@ -60,10 +60,8 @@ def block(event, current_time):
 
 def simulation(event_manager, scheduler):
     global current_running_process, start, end, processes_in_io, total_io_time
-    while event_manager:
+    while event_manager.event_list:
         event = event_manager.get_event()
-        if event is None:
-            break
         current_time = event.timestamp
         call_scheduler = False
 
@@ -84,20 +82,21 @@ def simulation(event_manager, scheduler):
             call_scheduler = True
             current_running_process = None
 
-        if call_scheduler:
-            if event_manager.get_next_event_time() == current_time:
-                continue
+        if not call_scheduler or event_manager.get_next_event_time() == current_time:
+            continue
 
-            if current_running_process is None:
-                current_running_process = scheduler.get_next_process()
-                if current_running_process is None:
-                    continue
+        if current_running_process is not None:
+            continue
 
-                current_running_process.cpu_waiting_time += current_time - current_running_process.entry_time
-                current_running_process.entry_time = current_time
-                new_event = Event(current_time, current_running_process, State.READY, Transition.RUN)
-                event_manager.put_event(new_event)
-                current_running_process = None
+        current_running_process = scheduler.get_next_process()
+        if current_running_process is None:
+            continue
+
+        current_running_process.cpu_waiting_time += current_time - current_running_process.entry_time
+        current_running_process.entry_time = current_time
+        new_event = Event(current_time, current_running_process, State.READY, Transition.RUN)
+        event_manager.put_event(new_event)
+        current_running_process = None
     return total_io_time
 
 
