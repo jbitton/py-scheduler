@@ -2,17 +2,17 @@ from enum import Enum
 
 
 class State(Enum):
-    STATE_CREATED = 1
-    STATE_READY = 2
-    STATE_RUNNING = 3
-    STATE_BLOCKED = 4
+    CREATED = 1
+    READY = 2
+    RUNNING = 3
+    BLOCKED = 4
 
 
 class Transition(Enum):
-    TRANS_TO_READY = 1
-    TRANS_TO_RUN = 2
-    TRANS_TO_BLOCK = 3
-    TRANS_TO_DONE = 4
+    READY = 1
+    RUN = 2
+    BLOCK = 3
+    DONE = 4
 
 
 class Process(object):

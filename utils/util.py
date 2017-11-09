@@ -62,7 +62,7 @@ def create_processes(event_manager, process_list, filename):
         if count == 4:
             new_process = Process(attr[0], attr[1], attr[2], attr[3], randomize(4), process_number)
             process_list.append(new_process)
-            event = Event(new_process.entry_time, new_process, State.STATE_CREATED, Transition.TRANS_TO_READY)
+            event = Event(new_process.entry_time, new_process, State.CREATED, Transition.READY)
             event_manager.put_event(event)
             count = 0
             process_number += 1
@@ -76,8 +76,9 @@ def print_processes(process_list, total_io):
     finish_time = 0
 
     for p in process_list:
-        print(f"{p.pid}: {p.arrival_time} {p.total_cpu_time} {p.cpu_burst} {p.io_burst} ", end=" ")
-        print(f"{p.static_priority} | {p.finishing_time} {p.turnaround_time} {p.io_time} {p.cpu_waiting_time}")
+        print("%s: %4d %4d %4d" % (str(p.pid).zfill(4), p.arrival_time, p.total_cpu_time, p.cpu_burst), end=" ")
+        print("%4d %1d | %5d %5d" % (p.io_burst, p.static_priority, p.finishing_time, p.turnaround_time), end=" ")
+        print("%5d %5d" % (p.io_time, p.cpu_waiting_time))
 
         total_cpu_time += p.total_cpu_time
         total_turnaround_time += p.turnaround_time
@@ -87,7 +88,7 @@ def print_processes(process_list, total_io):
         if p.finishing_time > finish_time:
             finish_time = p.finishing_time
 
-    # print_totals(finish_time, total_cpu_time, total_io, num_processes, total_turnaround_time, total_cpu_waiting_time)
+    print_totals(finish_time, total_cpu_time, total_io, num_processes, total_turnaround_time, total_cpu_waiting_time)
 
 
 def print_totals(finish_time, total_cpu, total_io, num_processes, total_turnaround, total_cpu_waiting):
@@ -97,4 +98,5 @@ def print_totals(finish_time, total_cpu, total_io, num_processes, total_turnarou
     avg_cpu_waiting = (total_cpu_waiting / float(num_processes))
     throughput = (num_processes / float(finish_time)) * 100.0
 
-    print(f"SUM: {finish_time} {cpu_utilization} {io_utilization} {avg_turnaround} {avg_cpu_waiting} {throughput}")
+    print(f"SUM: %d %.2f %.2f %.2f %.2f %.3f" % (finish_time, cpu_utilization, io_utilization,
+                                                avg_turnaround, avg_cpu_waiting, throughput))
